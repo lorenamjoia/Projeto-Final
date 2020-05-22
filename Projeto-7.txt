@@ -1,0 +1,202 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # ANÁLISE GLOBAL DE USO E COBERTURA DA TERRA A PARTIR DE DADOS ESA CCI-LC
+
+# #explicar a importância de realizar a análise;
+# 
+# #apresentar brevemente o dado que será processado e o objetivo do projeto ESA CCI-LC; integração entre satélites distintos e com resolução espacial 
+variável (como eles reamostram os pixel de 1km para 300 m); dado de média resolução espacial;
+# 
+# #apresentar o site que é possível obter as informações sobre o dado (documentation) e realizar o download dos arquivos;
+# 
+# ftp://geo10.elie.ucl.ac.be/ (download)
+# http://maps.elie.ucl.ac.be/CCI/viewer/download.php (download)
+# http://maps.elie.ucl.ac.be/CCI/viewer/ (documentation e download)
+# 
+# #falar sobre quais dados nos usamos, ano, intervalo entre os anos e as classes (podemos usar as 22 ou sintetizar com a de referência do IPCC);
+# 
+# #diagrama de sankey, porque utilizamos ele, o que ele nos mostra, qual a sua utilidade e o que podemos extrair de sua análise (representação visual 
+das mudanças na cobertura da terra entre os anos e as classes que apresentaram maiores alterações);
+# 
+
+# # Processamento:
+
+# #quais bibliotecas serão utilizadas e qual a funcionalidade delas dentro do processamento a ser realizado?
+# 
+# #numpy (processar os arrays gerados a partir dos arquivos raster.tif)
+# 
+# #matplotlib  (https://matplotlib.org/api/sankey_api.html?highlight=matplotlib%20python%20plotting - tipo de diagrama de sankey)
+# 
+# #sys
+# 
+# #pandas
+# 
+# #gdal (processar os arquivos raster.tif)
+# 
+# #plotly.plotly (vi uns códigos utilizando essa função para gerar o diagrama, mas não consegui importar, talvez tenha que ser instalado previamente) 
+https://chart-studio.plotly.com/~alishobeiri/1591/plotly-sankey-diagrams/#/
+
+# # I) Imagens (raster.tif)
+IMPORTAR AS BIBLIOTECAS E FUNÇÕES:
+
+#importar bibliotecas
+    from osgeo import gdal
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import sys
+
+#importar constantes
+    from gdalconst import *
+
+#informar o uso de exceções
+    gdal.UseExceptions()
+
+PRÉ-PROCESSAMENTO, VALIDAÇÃO DOS DADOS:
+
+#abrir com o gdal #inserir as imagens: (imagem do ano de 2015 não é 'acumulado' é anual, não encontrei o acumulado de 2015
+    filename_2000 = 'C:/Users/isado/ESACCILC/ESACCI-LC-L4-LCCS-Map-300m-P5Y-2000-v1.6.1.tif'
+    filename_2005 = 'C:/Users/isado/ESACCILC/ESACCI-LC-L4-LCCS-Map-300m-P5Y-2005-v1.6.1.tif'
+    filename_2010 = 'C:/Users/isado/ESACCILC/ESACCI-LC-L4-LCCS-Map-300m-P5Y-2010-v1.6.1.tif'
+    filename_2015 = 'C:/Users/isado/ESACCILC/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2015-v2.0.7.tif'
+
+#nomear os arquivos   
+    dataset_2000 = gdal.Open(filename_2000, GA_ReadOnly)
+    dataset_2005 = gdal.Open(filename_2005, GA_ReadOnly)
+    dataset_2010 = gdal.Open(filename_2010, GA_ReadOnly)
+    dataset_2015 = gdal.Open(filename_2015, GA_ReadOnly)
+
+#boa prática, para validar a abertura dos arquivos:
+    try:
+        dataset_2000 = gdal.Open(filename_2000, GA_ReadOnly)
+         print('Arquivo P5Y-2000 aberto com sucesso!')
+        dataset_2005 = gdal.Open(filename_2005, GA_ReadOnly)
+         print('Arquivo P5Y-2005 aberto com sucesso!')
+        dataset_2010 = gdal.Open(filename_2010, GA_ReadOnly)
+         print('Arquivo P5Y-2010 aberto com sucesso!')
+        dataset_2015 = gdal.Open(filename_2015, GA_ReadOnly)
+         print('Arquivo P1Y-2015 aberto com sucesso!')
+    except:
+        print('Erro na abertura do arquivo!')
+    
+#metadados associado, consulta aos elementos ([0] coordenada x (canto superior esquerdo da imagem); [1] comprimento dos elementos "resolução espacial"; 
+[2] orientação north 0; [3] coordenada y (canto superior esquerdo da imagem); [4] north 0; [5] altura do pixel)
+    geotransform_2000 = dataset_2000.GetGeoTransform()
+    geotransform_2005 = dataset_2005.GetGeoTransform()
+    geotransform_2010 = dataset_2010.GetGeoTransform()
+    geotransform_2015 = dataset_2015.GetGeoTransform()
+
+#checar sistema de coordenadas (https://spatialreference.org/)
+    sr_2000 = dataset_2000.GetProjectionRef()
+    sr_2005 = dataset_2005.GetProjectionRef()
+    sr_2010 = dataset_2010.GetProjectionRef()
+    sr_2015 = dataset_2015.GetProjectionRef()
+    print('Sistema de referência P5Y-2000\n ', sr_2000)    
+    print('Sistema de referência P5Y-2005\n ', sr_2005)
+    print('Sistema de referência P5Y-2010\n ', sr_2010)
+    print('Sistema de referência P1Y-2015\n ', sr_2015)
+    
+#verificar compatibilidade de metadados (se todas as imagens possuem o mesmo sistema de coordenadas e sobreposição):
+    if (sr_2000 = sr_2005) and (sr_2000 = sr_2010) and (sr_2000 = 2015) and (sr_2005 = sr_2010) and (sr_2005 = sr_2015) and (sr_2010 = 2015):
+        print("Sistemas de referência iguais")
+    else:
+        print("Metadados espaciais diferentes")
+        
+#obter metadados (matriz, x e y):
+    line_2000 = dataset_2000.RasterYSize
+    col_2000 = dataset_2000.RasterXSize
+    print('P5Y-2000: {} linhas e {} colunas'.format(line_2000, col_2000)
+    
+    line_2005 = dataset_2005.RasterYSize
+    col_2005 = dataset_2005.RasterXSize
+    print('P5Y-2005: {} linhas e {} colunas'.format(line_2005, col_2005)
+    
+    line_2010 = dataset_2010.RasterYSize
+    col_2010 = dataset_2010.RasterXSize
+    print('P5Y-2010: {} linhas e {} colunas'.format(line_2010, col_2010)
+    
+    line_2015 = dataset_2015.RasterYSize
+    col_2015 = dataset_2000.RasterXSize
+    print('P1Y-2015: {} linhas e {} colunas'.format(line_2015, col_2015)
+
+
+#o arquivo é composto por bandas?
+    banda_2000 = dataset_2000.RasterCount
+    print('Número de bandas P5Y-2000:', banda_2000)
+    banda_2005 = dataset_2005.RasterCount
+    print('Número de bandas P5Y-2005:', banda_2005)
+    banda_2010 = dataset_2010.RasterCount
+    print('Número de bandas P5Y-2010:', banda_2010)
+    banda_2015 = dataset_2015.RasterCount
+    print('Número de bandas P1Y-2015:', banda_2015)
+
+#caso os arquivos não foram compostos por bandas podemos manipular a imagem tranformada em ReadAsArray() direto
+    # obter as bandas
+    band_2000 = dataset_2000.GetRasterBand(1)
+    band_2005 = dataset_2005.GetRasterBand(1)
+    band_2010 = dataset_2010.GetRasterBand(1)
+    band_2015 = dataset_2015.GetRasterBand(1)
+PREPARAR AS MATRIZES PARA PROCESSAMENTO:
+
+#gerar matrizes de pixels (.astype(float) caso os valores foram decimais, ou .astype(int) se for por valor correspondente a classe)
+    numpy_2000 = band_2000.ReadAsArray()
+    numpy_2005 = band_2005.ReadAsArray()
+    numpy_2010 = band_2010.ReadAsArray()
+    numpy_2015 = band_2015.ReadAsArray()
+
+
+#entender a legenda, valores de pixel para associar as classes de cobertura do solo. valores mínimos e máximos dos pixels, para compreender o intervalo de valore e 
+se eles se relacionam com as classes:
+
+    (menor, maior) = band_2000.ComputeRasterMinMax()
+    print('Menor valor de P5Y-2000: ', menor)
+    print('Maior valor de P5Y-2000: ', maior)
+    
+    (menor, maior) = band_2005.ComputeRasterMinMax()
+    print('Menor valor de P5Y-2005: ', menor)
+    print('Maior valor de P5Y-2005: ', maior)
+    
+    (menor, maior) = band_2010.ComputeRasterMinMax()
+    print('Menor valor de P5Y-2010: ', menor)
+    print('Maior valor de P5Y-2010: ', maior)
+    
+    (menor, maior) = band_2015.ComputeRasterMinMax()
+    print('Menor valor de P5Y-2015: ', menor)
+    print('Maior valor de P5Y-2015: ', maior)
+ou
+    imagens = ([band_2000, band_2005, band_2010, band_2015])
+    for i in range(imagens):
+        print('Mínimos e máximos da imagem', i+1) 
+        print(i+1, ComputeRasterMinMax())
+        
+#caso os valores dos pixel demonstrarem correspondência as classes de cobertura do solo podemos continuar, do contrario teremos que pesquisar mais a fundo como
+é possível identificar as classes pelas imagens
+# DETECTAR AS MUDANÇAS DE USO NA COBERTURA DA TERRA:
+# 
+# Devemos oberservar ORIGEM e DESTINO (classe A mudou para B ou permaneceu A) e quantificar as alterações ocorrida. O diagrama de Sankey necessita compreender os 
+fluxos de dados e proporções relativas, assim todo processamento deve ser armazenado em tabelas ou listas (vi essa função, mas não testei preciso aprofundar 
+['groupby (). Agg ()]) para posterior plotagem no diagrama.
+# 
+# https://medium.com/kenlok/how-to-create-sankey-diagrams-from-dataframes-in-python-e221c1b4d6b0
+# 
+# a lógica seria:
+# Área x (10 pixels na amazonia)
+# 
+# em 2000, 10 pixel = floresta
+# 
+# em 2005, 5 pixels = desmatamento
+#        , 3 pixels = floresta
+#        , 2 pixels = urbano
+#         
+# mudanças = 2005 - 2000
+# 100% de floresta em 2000 foram modificados em 2005 para: 50% desmatamento, 30% permaneceu floresta e 20% urbano
+# 
+# em 2010, 7 pixels = urbano
+#        , 3 pixels = desmatamento
+#  
+# mudanças = 2010 - 2005
+# 50% desmatado virou urbano; 30% floresta virou desmatado; 20% permaneceu urbano
+#     
+# em 2015, 10 pixels = urbano
+# 30% desmatado virou urbano; e 70% permaneceu urbano
+# 
